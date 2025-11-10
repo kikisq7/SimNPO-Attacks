@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 # from vllm import LLM
 
-from lib.prune import (
+from src.set_difference_pruning.alignment_attribution_code.lib.prune import (
     prune_wanda,
     prune_random,
     prune_magnitude,
