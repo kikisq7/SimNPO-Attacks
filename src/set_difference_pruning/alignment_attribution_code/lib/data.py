@@ -26,9 +26,10 @@ def get_align(nsamples, seed, seqlen, tokenizer, disentangle=False, mode="base")
     print(f"Using align: {mode}")
     # Load train and test datasets
     if mode == "short":
-        data_files = {"train": "./data/SFT_aligned_llama2-7b-chat-hf_train_short.csv"}
+        csv_path = "/content/SimNPO-Attacks/src/set_difference_pruning/alignment_attribution_code/data/SFT_aligned_llama2-7b-chat-hf_train_short.csv"
     else:
-        data_files = {"train": "./data/SFT_aligned_llama2-7b-chat-hf_train.csv"}
+        csv_path = "/content/SimNPO-Attacks/src/set_difference_pruning/alignment_attribution_code/data/SFT_aligned_llama2-7b-chat-hf_train.csv"
+    data_files = {"train": csv_path}
     traindata = load_dataset("csv", data_files=data_files, split="train")
     trainloader = []
     random.seed(seed)
@@ -170,14 +171,16 @@ def get_wikitext2(nsamples, seed, seqlen, tokenizer, disentangle, name):
 
 def get_alpaca(nsamples, seed, seqlen, tokenizer, disentangle=False, dataset="alpaca"):
     print(f"Using alpaca: {dataset}")
+    base = "/content/SimNPO-Attacks/src/set_difference_pruning/alignment_attribution_code/data"
     if dataset == "alpaca":
-        data_files = {"train": "./data/alpaca_train.csv"}
+        csv_path = f"{base}/alpaca_train.csv"
     elif dataset == "alpaca_cleaned":
-        data_files = {"train": "./data/alpaca_cleaned_train.csv"}
+        csv_path = f"{base}/alpaca_cleaned_train.csv"
     elif dataset == "alpaca_cleaned_no_safety":
-        data_files = {"train": "./data/alpaca_cleaned_no_safety_train.csv"}
+        csv_path = f"{base}/alpaca_cleaned_no_safety_train.csv"
     else:
         raise ValueError("Dataset not supported")
+    data_files = {"train": csv_path}
     traindata = load_dataset("csv", data_files=data_files, split="train")
     random.seed(seed)
     # Encode datasets

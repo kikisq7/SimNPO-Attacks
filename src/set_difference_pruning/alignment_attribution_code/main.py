@@ -34,6 +34,7 @@ print("transformers", version("transformers"))
 print("accelerate", version("accelerate"))
 print("# of gpus: ", torch.cuda.device_count())
 
+#NEED TO CHANGE TOKENIZER
 modeltype2path = {
     "llama2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
     "llama2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
