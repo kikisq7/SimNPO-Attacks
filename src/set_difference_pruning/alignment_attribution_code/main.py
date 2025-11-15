@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 # from vllm import LLM
 
-from src.set_difference_pruning.alignment_attribution_code.lib.prune import (
+from .lib.prune import (
     prune_wanda,
     prune_random,
     prune_magnitude,
@@ -27,7 +27,7 @@ from .lib.model_wrapper_low import make_low_rank
 from .lib.eval import eval_ppl, eval_zero_shot, eval_attack, eval_unlearn
 from .lib.constants import MODEL_CACHE_DIR, RESULTS_DIR
 
-from main_low_rank_diff import make_low_rank
+from .main_low_rank_diff import make_low_rank
 
 print("torch", version("torch"))
 print("transformers", version("transformers"))

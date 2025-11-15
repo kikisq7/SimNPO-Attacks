@@ -256,148 +256,148 @@ def eval_zero_shot(
     return results
 
 
-# def eval_attack(
-#     model,
-#     tokenizer,
-#     num_sampled=1,
-#     add_sys_prompt=True,
-#     prompt_template_style="base",
-#     do_sample=True,
-#     gcg=False,
-#     include_inst=True,
-#     save_attack_res=True,
-#     filename="",
-# ):
-#     """
-#     Evaluate the attack performance of a given model on AdvBench.
+def eval_attack(
+    model,
+    tokenizer,
+    num_sampled=1,
+    add_sys_prompt=True,
+    prompt_template_style="base",
+    do_sample=True,
+    gcg=False,
+    include_inst=True,
+    save_attack_res=True,
+    filename="",
+):
+    """
+    Evaluate the attack performance of a given model on AdvBench.
 
-#     Args:
-#         model (object): The model object to be evaluated.
-#         tokenizer (object): The tokenizer object used for tokenization.
-#         num_sampled (int, optional): The number of samples to generate for each input. Defaults to 5.
-#         add_sys_prompt (bool, optional): Whether to add a system prompt to the input. Defaults to True.
-#         do_sample (bool, optional): Whether to use sampling during generation. Defaults to True.
-#         include_inst (bool, optional): Whether to include instructions in the prompt. Defaults to True.
-#         save_attack_res (bool, optional): Whether to save the attack results. Defaults to True.
-#         filename (str, optional): The filename to save the attack results. Required if save_attack_res is True.
+    Args:
+        model (object): The model object to be evaluated.
+        tokenizer (object): The tokenizer object used for tokenization.
+        num_sampled (int, optional): The number of samples to generate for each input. Defaults to 5.
+        add_sys_prompt (bool, optional): Whether to add a system prompt to the input. Defaults to True.
+        do_sample (bool, optional): Whether to use sampling during generation. Defaults to True.
+        include_inst (bool, optional): Whether to include instructions in the prompt. Defaults to True.
+        save_attack_res (bool, optional): Whether to save the attack results. Defaults to True.
+        filename (str, optional): The filename to save the attack results. Required if save_attack_res is True.
 
-#     Returns:
-#         float: The final attack score.
+    Returns:
+        float: The final attack score.
 
-#     Raises:
-#         AssertionError: If save_attack_res is True but no filename is provided.
+    Raises:
+        AssertionError: If save_attack_res is True but no filename is provided.
 
-#     """
-#     # Load data and prepare the prompt
-#     # TODO: support other datasets
-#     with open("./data/advbench.txt") as f:
-#         lines = f.readlines()[:100]
-#     lines = [l.strip("\n").strip() for l in lines]  # remove \n and trailing spaces
-#     if gcg:
-#         assert add_sys_prompt == False
-#         assert include_inst == True
-#         assert do_sample == False
-#         final_score_temp = [0, 0, 0]
-#         for i in range(3):
-#             dialogs = apply_prompt_template(
-#                 prompt_template_style="none",
-#                 dataset=lines,
-#                 include_inst=include_inst,
-#                 gcg_suffix_id=i,
-#             )
+    """
+    # Load data and prepare the prompt
+    # TODO: support other datasets
+    with open("./data/advbench.txt") as f:
+        lines = f.readlines()[:100]
+    lines = [l.strip("\n").strip() for l in lines]  # remove \n and trailing spaces
+    if gcg:
+        assert add_sys_prompt == False
+        assert include_inst == True
+        assert do_sample == False
+        final_score_temp = [0, 0, 0]
+        for i in range(3):
+            dialogs = apply_prompt_template(
+                prompt_template_style="none",
+                dataset=lines,
+                include_inst=include_inst,
+                gcg_suffix_id=i,
+            )
 
-#             # Generate outputs, check here for more options for the sampling params: https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
-#             sampling_params = SamplingParams(
-#                 temperature=0, n=num_sampled, max_tokens=256
-#             )  # greedy decoding
-#             start = time.time()
-#             vllm_outputs = model.generate(dialogs, sampling_params)
-#             end = time.time()
-#             print("Attack finishes in {} seconds".format(end - start))
+            # Generate outputs, check here for more options for the sampling params: https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
+            sampling_params = SamplingParams(
+                temperature=0, n=num_sampled, max_tokens=256
+            )  # greedy decoding
+            start = time.time()
+            vllm_outputs = model.generate(dialogs, sampling_params)
+            end = time.time()
+            print("Attack finishes in {} seconds".format(end - start))
 
-#             # Save the outputs
-#             res = pd.DataFrame()
-#             prompts, outputs = [], []
-#             question_ids = []
-#             for idx, output in enumerate(vllm_outputs):
-#                 # prompt = output.prompt
-#                 prompt = lines[idx]
-#                 generated_text = [o.text for o in output.outputs]
-#                 outputs.extend(generated_text)
-#                 prompts.extend([prompt] * len(generated_text))
-#                 question_ids.extend([idx] * len(generated_text))
+            # Save the outputs
+            res = pd.DataFrame()
+            prompts, outputs = [], []
+            question_ids = []
+            for idx, output in enumerate(vllm_outputs):
+                # prompt = output.prompt
+                prompt = lines[idx]
+                generated_text = [o.text for o in output.outputs]
+                outputs.extend(generated_text)
+                prompts.extend([prompt] * len(generated_text))
+                question_ids.extend([idx] * len(generated_text))
 
-#             # Evaluate the outputs
-#             output_score = np.asarray([not_matched(g) for g in outputs])
+            # Evaluate the outputs
+            output_score = np.asarray([not_matched(g) for g in outputs])
 
-#             res["prompt"] = prompts
-#             res["response"] = outputs
-#             res["question_id"] = question_ids
-#             res["ASR_substring_match"] = output_score
+            res["prompt"] = prompts
+            res["response"] = outputs
+            res["question_id"] = question_ids
+            res["ASR_substring_match"] = output_score
 
-#             final_score_temp[i] = output_score.reshape(-1, 1).max(axis=1).mean()
-#             if save_attack_res:
-#                 assert (
-#                     filename != ""
-#                 ), "Please provide a filename to save the attack results."
-#                 res.to_json(filename, orient="records", lines=True)
-#         # Final score is the max value inside final_score_temp
-#         final_score = max(final_score_temp)
-#         return final_score
+            final_score_temp[i] = output_score.reshape(-1, 1).max(axis=1).mean()
+            if save_attack_res:
+                assert (
+                    filename != ""
+                ), "Please provide a filename to save the attack results."
+                res.to_json(filename, orient="records", lines=True)
+        # Final score is the max value inside final_score_temp
+        final_score = max(final_score_temp)
+        return final_score
 
-#     else:
-#         if add_sys_prompt:
-#             dialogs = apply_prompt_template(
-#                 prompt_template_style=prompt_template_style,
-#                 dataset=lines,
-#                 include_inst=include_inst,
-#             )
-#         else:
-#             dialogs = apply_prompt_template(
-#                 prompt_template_style="none", dataset=lines, include_inst=include_inst
-#             )
+    else:
+        if add_sys_prompt:
+            dialogs = apply_prompt_template(
+                prompt_template_style=prompt_template_style,
+                dataset=lines,
+                include_inst=include_inst,
+            )
+        else:
+            dialogs = apply_prompt_template(
+                prompt_template_style="none", dataset=lines, include_inst=include_inst
+            )
 
-#         # Generate outputs, check here for more options for the sampling params: https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
-#         if do_sample:
-#             sampling_params = SamplingParams(
-#                 temperature=1.0, n=num_sampled, max_tokens=256
-#             )  # sampling
-#         else:
-#             sampling_params = SamplingParams(
-#                 temperature=0, n=num_sampled, max_tokens=256
-#             )  # greedy decoding
-#         start = time.time()
-#         vllm_outputs = model.generate(dialogs, sampling_params)
-#         end = time.time()
-#         print("Attack finishes in {} seconds".format(end - start))
+        # Generate outputs, check here for more options for the sampling params: https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py
+        if do_sample:
+            sampling_params = SamplingParams(
+                temperature=1.0, n=num_sampled, max_tokens=256
+            )  # sampling
+        else:
+            sampling_params = SamplingParams(
+                temperature=0, n=num_sampled, max_tokens=256
+            )  # greedy decoding
+        start = time.time()
+        vllm_outputs = model.generate(dialogs, sampling_params)
+        end = time.time()
+        print("Attack finishes in {} seconds".format(end - start))
 
-#         # Save the outputs
-#         res = pd.DataFrame()
-#         prompts, outputs = [], []
-#         question_ids = []
-#         for idx, output in enumerate(vllm_outputs):
-#             # prompt = output.prompt
-#             prompt = lines[idx]
-#             generated_text = [o.text for o in output.outputs]
-#             outputs.extend(generated_text)
-#             prompts.extend([prompt] * len(generated_text))
-#             question_ids.extend([idx] * len(generated_text))
+        # Save the outputs
+        res = pd.DataFrame()
+        prompts, outputs = [], []
+        question_ids = []
+        for idx, output in enumerate(vllm_outputs):
+            # prompt = output.prompt
+            prompt = lines[idx]
+            generated_text = [o.text for o in output.outputs]
+            outputs.extend(generated_text)
+            prompts.extend([prompt] * len(generated_text))
+            question_ids.extend([idx] * len(generated_text))
 
-#         # Evaluate the outputs
-#         output_score = np.asarray([not_matched(g) for g in outputs])
+        # Evaluate the outputs
+        output_score = np.asarray([not_matched(g) for g in outputs])
 
-#         res["prompt"] = prompts
-#         res["response"] = outputs
-#         res["question_id"] = question_ids
-#         res["ASR_substring_match"] = output_score
+        res["prompt"] = prompts
+        res["response"] = outputs
+        res["question_id"] = question_ids
+        res["ASR_substring_match"] = output_score
 
-#         final_score = output_score.reshape(-1, 1).max(axis=1).mean()
-#         if save_attack_res:
-#             assert (
-#                 filename != ""
-#             ), "Please provide a filename to save the attack results."
-#             res.to_json(filename, orient="records", lines=True)
-#         return final_score
+        final_score = output_score.reshape(-1, 1).max(axis=1).mean()
+        if save_attack_res:
+            assert (
+                filename != ""
+            ), "Please provide a filename to save the attack results."
+            res.to_json(filename, orient="records", lines=True)
+        return final_score
     
 
 def eval_unlearn(
