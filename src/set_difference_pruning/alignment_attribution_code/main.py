@@ -38,6 +38,7 @@ modeltype2path = {
     "llama2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
     "llama2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
     "zephyr-7b-beta": "HuggingFaceH4/zephyr-7b-beta",
+    "simnpo-wmdp-zephyr-7b-beta": "OPTML-Group/SimNPO-WMDP-zephyr-7b-beta",
     "llama2-7b-hf": "",
     "llama2-13b-hf": "",
 }
@@ -48,6 +49,7 @@ def get_llm(model_name, cache_dir=MODEL_CACHE_DIR):
         "llama2-7b-chat-hf",
         "llama2-13b-chat-hf",
         "zephyr-7b-beta",
+        "simnpo-wmdp-zephyr-7b-beta",
         "llama2-7b-hf",
         "llama2-13b-hf",
     ]:
