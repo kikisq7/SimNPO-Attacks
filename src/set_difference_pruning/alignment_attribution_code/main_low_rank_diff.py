@@ -9,11 +9,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch.nn as nn
 from typing import Optional
 from importlib.metadata import version
-from lib.data import get_loaders
-from lib.eval import eval_ppl, eval_zero_shot, eval_attack
+from .lib.data import get_loaders
+from .lib.eval import eval_ppl, eval_zero_shot, eval_attack
 from functools import reduce
 from vllm import LLM
-from lib.constants import SAVE_PATH, MODEL_CACHE_DIR
+from .lib.constants import SAVE_PATH, MODEL_CACHE_DIR
 
 class ActLinear(nn.Module):
     """
