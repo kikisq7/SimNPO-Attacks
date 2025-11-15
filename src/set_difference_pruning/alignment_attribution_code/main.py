@@ -44,6 +44,15 @@ modeltype2path = {
     "llama2-13b-hf": "",
 }
 
+modeltype2tokenizerpath = {
+    "llama2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
+    "llama2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
+    "zephyr-7b-beta": "HuggingFaceH4/zephyr-7b-beta",
+    "simnpo-wmdp-zephyr-7b-beta": "HuggingFaceH4/zephyr-7b-beta",
+    "llama2-7b-hf": "",
+    "llama2-13b-hf": "",
+}
+
 
 def get_llm(model_name, cache_dir=MODEL_CACHE_DIR):
     if model_name in [
@@ -271,7 +280,7 @@ def main():
     if model.seqlen > args.model_seq_len_thresh: # without this we run out of memory too easily # only when doing backprop
         model.seqlen = args.model_seq_len_thresh
     tokenizer = AutoTokenizer.from_pretrained(
-        modeltype2path[args.model], use_fast=False
+        modeltype2tokenizerpath[args.model], use_fast=False
     )
 
     if (args.decouple_align_misalign or args.decouple_align_utility) and (
