@@ -14,6 +14,7 @@ import random
 from .ablate import AblateGPT
 import heapq
 import re
+from .constants import RESULTS_DIR
 
 def jaccard_index(tensor1: torch.Tensor, tensor2: torch.Tensor) -> float:
     # Get unique elements to simulate set behavior
@@ -1716,7 +1717,6 @@ def prune_wandg_set_difference(
     args,
     model,
     tokenizer,
-    directory:str,
     model_base=None,
     device=torch.device("cuda:0"),
     prune_n=0,
@@ -1728,6 +1728,7 @@ def prune_wandg_set_difference(
     layer_subset: Optional[Literal["mlp_only", "omit_keys_queries"]] = None,
     scoring_method:Literal["wanda", "wandg"] = "wandg",
 ):
+    directory = RESULTS_DIR
     use_cache = model.config.use_cache
     model.config.use_cache = False
     layers = model.model.layers

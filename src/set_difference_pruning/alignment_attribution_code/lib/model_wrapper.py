@@ -357,6 +357,11 @@ def prune_wandg(
     prune_data="wikitext",
     dataset_seed = None,
 ):
+    if not hasattr(args, "layer_subset"):
+        args.layer_subset = None  # default: prune all linear layers
+    if not hasattr(args, "disentangle"):
+        args.disentangle = True   # this code assumes disentangle=True
+        
     model = make_Act(model, verbose=False)
 
     print(f"loading calibdation data {prune_data}")
