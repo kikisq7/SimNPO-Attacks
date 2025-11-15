@@ -124,7 +124,7 @@ class Llama2Wrapper:
     
     def get_decoded_activations(self, activations, search_tokens: Optional[list[int]] = None, topk: Optional[int] = None):
         assert search_tokens is None or topk is None, "Only top-k or search tokens can be selected"
-        softmaxed = torch.nn.functional.softmax(activations[0][-1], dim=-1)
+        softmaxed = torch.nn.functional.softmax(activations.squeeze()[-1], dim=-1)
         
         values = softmaxed
         indices = torch.arange(softmaxed.shape[-1])
