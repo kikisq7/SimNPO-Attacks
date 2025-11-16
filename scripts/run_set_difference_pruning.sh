@@ -1,4 +1,4 @@
-#!/bin/shd
+#!/bin/bash
 # This script runs the alignment-attribution code
 eval "$(conda shell.bash hook)"
 conda activate unlearning

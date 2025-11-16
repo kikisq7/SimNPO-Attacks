@@ -29,18 +29,14 @@ def get_answer_indices(tokenizer) -> Tensor:
     print("Answer tokens:", tokenizer.batch_decode(answer_ids), answer_ids)
     return answer_ids
 
-def dpo_to_mc(example):
-    question_full = example["prompt"].split("\n\n")[-1]
-    parts = question_full.split("\n")
-    question_raw = parts[0]
-    choices = [part[2:].strip() for part in parts[1:-1]]
-    assert len(choices) == 4
-    answers = list("ABCD")
-    return {
-        'question': question_raw,
-        'choices': choices,
-        'answer': answers.index(example['rejected'][0])
-    }
+# def dpo_to_mc(example):
+#     print(example.keys())
+#     answers = list("ABCD")
+#     return {
+#         'question': example["question"],
+#         'choices': example["choices"],
+#         'answer': answers.index(example['rejected'][0])
+#     }
 
 def get_direction_ablation_output_hook(direction: Tensor):
     """Taken from https://github.com/andyrdt/refusal_direction"""
@@ -54,7 +50,7 @@ def get_direction_ablation_output_hook(direction: Tensor):
 
         direction = direction / (direction.norm(dim=-1, keepdim=True) + 1e-8)
         direction = direction.to(activation)
-        activation -= (activation @ direction).unsqueeze(-1) * direction 
+        activation -= (activation @ direction).unsqueeze(-1) * direction
 
         if isinstance(output, tuple):
             return (activation, *output[1:])
@@ -82,9 +78,8 @@ def compute_activations(args, model, tokenizer, model_original, tokenizer_origin
         
     ## load datasets
     # contains unlearned knowledge
-    wmdp_dataset = load_dataset(f"J4Q8/{args.task.split("-")[-1]}_forget_dpo", split="train").take(1000).map(dpo_to_mc)
-    # contains benign knowledge in an article format
-    wiki_dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+
+    wmdp_dataset = load_dataset(f"cais/wmdp", "wmdp-bio", split="test").take(1000)
     # contains benign knowledge in a question format
     mmlu_dataset = load_dataset("cais/mmlu", "all", split="validation")
     
@@ -120,21 +115,27 @@ def compute_activations(args, model, tokenizer, model_original, tokenizer_origin
             
             # store activations
             for layer in args.layers:
+                # print("a", original_activations[layer].shape)
+                # print("b", model_original.layer_out[int(layer)].shape)
+                # print("c", model_original.layer_out[int(layer)][0].shape)
                 original_activations[layer] = torch.vstack((original_activations[layer], 
-                                                         model_original.layer_out[int(layer)][0][0,args.ignore_first_x_tokens:, :].cpu().float()))
+                                                         model_original.layer_out[int(layer)][0][args.ignore_first_x_tokens:, :].cpu().float()))
                 distorted_activations[layer] = torch.vstack((distorted_activations[layer], 
-                                                          model.layer_out[int(layer)][0][0,args.ignore_first_x_tokens:, :].cpu().float()))
+                                                          model.layer_out[int(layer)][0][args.ignore_first_x_tokens:, :].cpu().float()))
     
     
     # run mmlu dataset to get activations resulting from questions
     tokens_mmlu = []
+    mmlu_token_counts = []  # Track number of tokens per question for filtering
     mmlu_activations = {i: torch.empty((0,4096)) for i in args.layers}    
     for i in tqdm(range(len(mmlu_dataset)), smoothing= 0.0):
         prompt, ans = get_question(mmlu_dataset[i], context=context)
             
         # get activations
         tokens = tokenizer(prompt, return_tensors="pt").to(model.device)
-        tokens_mmlu += tokenizer.batch_decode(tokens.input_ids[0])
+        decoded_tokens = tokenizer.batch_decode(tokens.input_ids[0])
+        tokens_mmlu += decoded_tokens
+        mmlu_token_counts.append(len(decoded_tokens))  # Track tokens per question
         _ = model(tokens.input_ids)
         
         # store activations
@@ -142,19 +143,6 @@ def compute_activations(args, model, tokenizer, model_original, tokenizer_origin
             mmlu_activations[layer] = torch.vstack((mmlu_activations[layer], 
                                                  model.layer_out[int(layer)][0][0].cpu().float()))
         
-    # run wiki dataset to get clean activations from normal text
-    wikitext_activations = {i: torch.empty((0,4096)) for i in args.layers}
-    wikitext_tokens = []
-    for sample in tqdm(wiki_dataset["text"][:len(noise_triggering_questions)]): # so that the datasets are more or less the same size
-        # get activations
-        tokens = tokenizer(sample, return_tensors="pt").to(model.device)
-        wikitext_tokens += tokenizer.batch_decode(tokens.input_ids[0])
-        _ = model(tokens.input_ids)
-        
-        # store activations
-        for layer in args.layers:
-            wikitext_activations[layer] = torch.vstack((wikitext_activations[layer], 
-                                                    model.layer_out[int(layer)][0][0].cpu().float()))
     
     # save noise triggering questions
     save_as_json(output_dir, "noise_triggering_questions.json", noise_triggering_questions)
@@ -166,12 +154,11 @@ def compute_activations(args, model, tokenizer, model_original, tokenizer_origin
         torch.save(original_activations[layer], os.path.join(activation_dest, f"{layer}_original.pth"))
         torch.save(distorted_activations[layer], os.path.join(activation_dest, f"{layer}_distorted.pth"))
         torch.save(mmlu_activations[layer], os.path.join(activation_dest, f"{layer}_mmlu.pth"))
-        torch.save(wikitext_activations[layer], os.path.join(activation_dest, f"{layer}_wikitext.pth"))
     
     # save tokens
     save_as_json(activation_dest, "tokens_wmdp.json", tokens_wmdp)
     save_as_json(activation_dest, "tokens_mmlu.json", tokens_mmlu)
-    save_as_json(activation_dest, "tokens_wikitext.json", wikitext_tokens)
+    save_as_json(activation_dest, "mmlu_token_counts.json", mmlu_token_counts)
     
     # remove hooks
     for handle in handles:
@@ -179,8 +166,8 @@ def compute_activations(args, model, tokenizer, model_original, tokenizer_origin
     
     return {"original": original_activations, 
             "distorted": distorted_activations, 
-            "mmlu": mmlu_activations, 
-            "wikitext": wikitext_activations}, {"wmdp": tokens_wmdp, "mmlu": tokens_mmlu, "wikitext": wikitext_tokens}
+            "mmlu": mmlu_activations}, {"wmdp": tokens_wmdp, "mmlu": tokens_mmlu, "mmlu_token_counts": mmlu_token_counts}
+
 
 def compute_noise_direction(args, model, tokenizer, model_original, tokenizer_original, output_dir:str) -> None:
     
@@ -189,14 +176,18 @@ def compute_noise_direction(args, model, tokenizer, model_original, tokenizer_or
     if os.path.exists(os.path.join(output_dir, "activations")) and not args.recompute_directions:
         try:
             activations = {}
-            for key in ["original", "distorted", "mmlu", "wikitext"]:
+            for key in ["original", "distorted", "mmlu"]:
                 activations[key] = {}
                 for layer in args.layers:
                     activations[key][layer] = torch.load(os.path.join(output_dir, "activations", f"{layer}_{key}.pth"))
             
             tokens = {}
-            for key in ["wmdp", "mmlu", "wikitext"]:
+            for key in ["wmdp", "mmlu"]:
                 tokens[key] = json.load(open(os.path.join(output_dir, "activations", f"tokens_{key}.json")))
+            if os.path.exists(os.path.join(output_dir, "activations", "mmlu_token_counts.json")):
+                tokens["mmlu_token_counts"] = json.load(open(os.path.join(output_dir, "activations", "mmlu_token_counts.json")))
+            else:
+                tokens["mmlu_token_counts"] = None
             loaded = True
         except:
             print("Error loading activations, recomputing")
@@ -227,12 +218,29 @@ def compute_noise_direction(args, model, tokenizer, model_original, tokenizer_or
     remove_outliers_f = np.vectorize(lambda x: x not in outlier_list)
     
     wmdp_filter = remove_outliers_f(tokens["wmdp"])
-    mmlu_filter = remove_outliers_f(tokens["mmlu"])
-    wikitext_filter = remove_outliers_f(tokens["wikitext"])
+    
+    # Create question-level filter for MMLU (one entry per question, not per token)
+    # Check if any token in each question is an outlier
+    if tokens.get("mmlu_token_counts") is not None:
+        mmlu_token_counts = tokens["mmlu_token_counts"]
+        token_level_filter = remove_outliers_f(tokens["mmlu"])
+        # Convert token-level filter to question-level filter
+        mmlu_filter = []
+        token_idx = 0
+        for count in mmlu_token_counts:
+            # Question is kept if any of its tokens is not an outlier
+            question_tokens = token_level_filter[token_idx:token_idx + count]
+            mmlu_filter.append(any(question_tokens))
+            token_idx += count
+        mmlu_filter = np.array(mmlu_filter)
+    else:
+        # Fallback: include all questions if token counts not available
+        num_questions = activations["mmlu"][list(activations["mmlu"].keys())[0]].shape[0]
+        mmlu_filter = np.ones(num_questions, dtype=bool)
     
     # Compute noise direction
-    noise_directions = {"ground_truth": {}, "mmlu": {}, "wikitext": {}, "pca": {}}
-    direction_vec_dest = os.path.join(output_dest, "direction_vectors")
+    noise_directions = {"ground_truth": {}, "mmlu": {}, "pca": {}}
+    direction_vec_dest = os.path.join(output_dir, "direction_vectors")
     create_if_not_exists(direction_vec_dest)
     for layer in args.layers:
         
@@ -242,9 +250,6 @@ def compute_noise_direction(args, model, tokenizer, model_original, tokenizer_or
         
         mmlu = activations["mmlu"][layer][mmlu_filter]
         noise_directions["mmlu"][layer] = torch.mean(distorted, axis=0) - torch.mean(mmlu, axis=0)
-        
-        wiki = activations["wikitext"][layer][wikitext_filter]
-        noise_directions["wikitext"][layer] = torch.mean(distorted, axis=0) - torch.mean(wiki, axis=0)
         
         # limit to 2500 samples for PCA otherwise it takes too long
         limit = 2500
@@ -257,7 +262,6 @@ def compute_noise_direction(args, model, tokenizer, model_original, tokenizer_or
         # save noise directions
         torch.save(noise_directions["ground_truth"][layer], os.path.join(direction_vec_dest, f"{layer}_ground_truth.pth"))
         torch.save(noise_directions["mmlu"][layer], os.path.join(direction_vec_dest, f"{layer}_mmlu.pth"))
-        torch.save(noise_directions["wikitext"][layer], os.path.join(direction_vec_dest, f"{layer}_wikitext.pth"))
         torch.save(noise_directions["pca"][layer], os.path.join(direction_vec_dest, f"{layer}_pca.pth"))
     
     return noise_directions
