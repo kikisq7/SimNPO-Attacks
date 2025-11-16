@@ -221,40 +221,35 @@ def eval_zero_shot(
     add_special_tokens=False,
     limit=None,
 ):
-    from lm_eval import tasks, evaluator
+    from lm_eval import evaluator
 
-    def pattern_match(patterns, source_list):
-        task_names = set()
-        for pattern in patterns:
-            for matching in fnmatch.filter(source_list, pattern):
-                task_names.add(matching)
-        return list(task_names)
+    task_names = task_list
 
-    task_names = pattern_match(task_list, tasks.ALL_TASKS)
-    model_args = f"pretrained={model_name},cache_dir={EVAL_CACHE_PATH}"
+    model_args = f"pretrained={model_name}"
+
+    # tokenizer_arg = None
+    # if tokenizer is not None:
+    #     if isinstance(tokenizer, str):
+    #         tokenizer_arg = tokenizer
+    #     elif hasattr(tokenizer, "name_or_path"):
+    #         tokenizer_arg = tokenizer.name_or_path
+    # if tokenizer_arg is not None:
+    #     model_args += f",tokenizer={tokenizer_arg}"
+    model_args += f",tokenizer=HuggingFaceH4/zephyr-7b-beta"
     if use_accelerate:
-        model_args = (
-            f"pretrained={model_name},cache_dir={EVAL_CACHE_PATH},use_accelerate=True"
-        )
+        model_args += ",use_accelerate=True"
+
     results = evaluator.simple_evaluate(
-        model="hf-causal-experimental",
+        model="hf",
         model_args=model_args,
         tasks=task_names,
         num_fewshot=num_fewshot,
         batch_size=None,
         device=None,
-        no_cache=True,
         limit=limit,
-        description_dict={},
-        decontamination_ngrams_path=None,
         check_integrity=False,
-        pretrained_model=model,
-        tokenizer=tokenizer,
-        add_special_tokens=add_special_tokens,
     )
-
     return results
-
 
 def eval_attack(
     model,

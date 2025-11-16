@@ -38,7 +38,7 @@ print("# of gpus: ", torch.cuda.device_count())
 modeltype2path = {
     "llama2-7b-chat-hf": "meta-llama/Llama-2-7b-chat-hf",
     "llama2-13b-chat-hf": "meta-llama/Llama-2-13b-chat-hf",
-    "zephyr-7b-beta": "HuggingFaceH4/zephyr-7b-beta",
+    "zephyr-7b-beta": "HuggingFaceH4/zephyr-7b-beta", 
     "simnpo-wmdp-zephyr-7b-beta": "OPTML-Group/SimNPO-WMDP-zephyr-7b-beta",
     "llama2-7b-hf": "",
     "llama2-13b-hf": "",
@@ -563,136 +563,136 @@ def main():
 
         print(results)
 
-    # if args.eval_attack:
-    #     # note: since vLLM only supports loading from the path, we need to save the pruned model first for faster evaluation. We can reuse this temp folder to save disk spaces
-    #     pruned_path = os.path.join(
-    #         args.save,
-    #         f"{args.prune_method}_usediff_{args.use_diff}_recover_{args.recover_from_base}",
-    #     )
-        # model.save_pretrained(pruned_path)
-        # vllm_model = LLM(
-        #     model=pruned_path,
-        #     tokenizer=modeltype2path[args.model],
-        #     dtype="bfloat16",
-        #     swap_space=128,
-        # )
-        # if args.decouple_align_utility or args.decouple_align_misalign:
-        #     vllm_model.llm_engine.tokenizer.add_special_tokens({"pad_token": "[PAD]"})
-        # for include_inst in [True, False]:
-        #     suffix = "inst_" if include_inst else "no_inst_"
-        #     print("********************************")
-        #     # ASR_basic
-        #     score = eval_attack(
-        #         vllm_model,
-        #         tokenizer,
-        #         num_sampled=1,
-        #         add_sys_prompt=True,
-        #         do_sample=False,
-        #         save_attack_res=args.save_attack_res,
-        #         include_inst=include_inst,
-        #         filename=os.path.join(save_attackpath, f"{suffix}basic.jsonl"),
-        #     )
-        #     print(f"attack evaluation results ({suffix}basic): {score:.4f}")
-        #     with open(save_filepath, "a") as f:
-        #         if not args.prune_method == "wandg_set_difference":
-        #             print(
-        #                 f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_basic\t{score:.4f}",
-        #                 file=f,
-        #                 flush=True,
-        #             )
-        #         else:
-        #             print(
-        #                 f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_basic\t{score:.4f}",
-        #                 file=f,
-        #                 flush=True,
-        #             )
-        #     # ASR_basic_no_sys
-        #     print("********************************")
-        #     score = eval_attack(
-        #         vllm_model,
-        #         tokenizer,
-        #         num_sampled=1,
-        #         add_sys_prompt=False,
-        #         do_sample=False,
-        #         save_attack_res=args.save_attack_res,
-        #         include_inst=include_inst,
-        #         filename=os.path.join(save_attackpath, f"{suffix}basic_no_sys.jsonl"),
-        #     )
-        #     print(
-        #         f"attack evaluation results ({suffix}basic, no sys prompt): {score:.4f}"
-        #     )
-        #     with open(save_filepath, "a") as f:
-        #         if not args.prune_method == "wandg_set_difference":
-        #             print(
-        #                 f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_basic_nosys\t{score:.4f}",
-        #                 file=f,
-        #                 flush=True,
-        #             )
-        #         else:
-        #             print(
-        #                 f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_basic_nosys\t{score:.4f}",
-        #                 file=f,
-        #                 flush=True,
-        #             )
-        #     # seems that llama2-13b may run into error on this :(
-        #     # ASR_multiple_nosys
-        #     if args.model == "llama2-7b-chat-hf" or "llama2-13b-chat-hf":
-        #         print("********************************")
-        #         score = eval_attack(
-        #             vllm_model,
-        #             tokenizer,
-        #             num_sampled=5,
-        #             add_sys_prompt=False,
-        #             do_sample=True,
-        #             save_attack_res=args.save_attack_res,
-        #             include_inst=include_inst,
-        #             filename=os.path.join(
-        #                 save_attackpath, f"{suffix}multiple_no_sys.jsonl"
-        #             ),
-        #         )
-        #         print(
-        #             f"attack evaluation results ({suffix}multiple, no sys prompt): {score:.4f}"
-        #         )
-        #         with open(save_filepath, "a") as f:
-        #             if not args.prune_method == "wandg_set_difference":
-        #                 print(
-        #                     f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_multiple_nosys\t{score:.4f}",
-        #                     file=f,
-        #                     flush=True,
-        #                 )
-        #             else:
-        #                 print(
-        #                     f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_multiple_nosys\t{score:.4f}",
-        #                     file=f,
-        #                     flush=True,
-        #                 )
-        # # ASR_gcg
-        # score = eval_attack(
-        #     vllm_model,
-        #     tokenizer,
-        #     num_sampled=1,
-        #     add_sys_prompt=False,
-        #     gcg=True,
-        #     do_sample=False,
-        #     save_attack_res=args.save_attack_res,
-        #     include_inst=True,
-        #     filename=os.path.join(save_attackpath, f"gcg.jsonl"),
-        # )
-        # print(f"attack evaluation results (gcg): {score:.4f}")
-        # with open(save_filepath, "a") as f:
-        #     if not args.prune_method == "wandg_set_difference":
-        #         print(
-        #             f"{args.prune_method}\t{sparsity_ratio:.6f}\tASR_gcg\t{score:.4f}",
-        #             file=f,
-        #             flush=True,
-        #         )
-        #     else:
-        #         print(
-        #             f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\tASR_gcg\t{score:.4f}",
-        #             file=f,
-        #             flush=True,
-        #         )
-        # del vllm_model
+    if args.eval_attack:
+        # note: since vLLM only supports loading from the path, we need to save the pruned model first for faster evaluation. We can reuse this temp folder to save disk spaces
+        pruned_path = os.path.join(
+            args.save,
+            f"{args.prune_method}_usediff_{args.use_diff}_recover_{args.recover_from_base}",
+        )
+        model.save_pretrained(pruned_path)
+        vllm_model = LLM(
+            model=pruned_path,
+            tokenizer=modeltype2path[args.model],
+            dtype="bfloat16",
+            swap_space=128,
+        )
+        if args.decouple_align_utility or args.decouple_align_misalign:
+            vllm_model.llm_engine.tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+        for include_inst in [True, False]:
+            suffix = "inst_" if include_inst else "no_inst_"
+            print("********************************")
+            # ASR_basic
+            score = eval_attack(
+                vllm_model,
+                tokenizer,
+                num_sampled=1,
+                add_sys_prompt=True,
+                do_sample=False,
+                save_attack_res=args.save_attack_res,
+                include_inst=include_inst,
+                filename=os.path.join(save_attackpath, f"{suffix}basic.jsonl"),
+            )
+            print(f"attack evaluation results ({suffix}basic): {score:.4f}")
+            with open(save_filepath, "a") as f:
+                if not args.prune_method == "wandg_set_difference":
+                    print(
+                        f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_basic\t{score:.4f}",
+                        file=f,
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_basic\t{score:.4f}",
+                        file=f,
+                        flush=True,
+                    )
+            # ASR_basic_no_sys
+            print("********************************")
+            score = eval_attack(
+                vllm_model,
+                tokenizer,
+                num_sampled=1,
+                add_sys_prompt=False,
+                do_sample=False,
+                save_attack_res=args.save_attack_res,
+                include_inst=include_inst,
+                filename=os.path.join(save_attackpath, f"{suffix}basic_no_sys.jsonl"),
+            )
+            print(
+                f"attack evaluation results ({suffix}basic, no sys prompt): {score:.4f}"
+            )
+            with open(save_filepath, "a") as f:
+                if not args.prune_method == "wandg_set_difference":
+                    print(
+                        f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_basic_nosys\t{score:.4f}",
+                        file=f,
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_basic_nosys\t{score:.4f}",
+                        file=f,
+                        flush=True,
+                    )
+            # seems that llama2-13b may run into error on this :(
+            # ASR_multiple_nosys
+            if args.model == "llama2-7b-chat-hf" or "llama2-13b-chat-hf":
+                print("********************************")
+                score = eval_attack(
+                    vllm_model,
+                    tokenizer,
+                    num_sampled=5,
+                    add_sys_prompt=False,
+                    do_sample=True,
+                    save_attack_res=args.save_attack_res,
+                    include_inst=include_inst,
+                    filename=os.path.join(
+                        save_attackpath, f"{suffix}multiple_no_sys.jsonl"
+                    ),
+                )
+                print(
+                    f"attack evaluation results ({suffix}multiple, no sys prompt): {score:.4f}"
+                )
+                with open(save_filepath, "a") as f:
+                    if not args.prune_method == "wandg_set_difference":
+                        print(
+                            f"{args.prune_method}\t{sparsity_ratio:.6f}\t{suffix}ASR_multiple_nosys\t{score:.4f}",
+                            file=f,
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\t{suffix}ASR_multiple_nosys\t{score:.4f}",
+                            file=f,
+                            flush=True,
+                        )
+        # ASR_gcg
+        score = eval_attack(
+            vllm_model,
+            tokenizer,
+            num_sampled=1,
+            add_sys_prompt=False,
+            gcg=True,
+            do_sample=False,
+            save_attack_res=args.save_attack_res,
+            include_inst=True,
+            filename=os.path.join(save_attackpath, f"gcg.jsonl"),
+        )
+        print(f"attack evaluation results (gcg): {score:.4f}")
+        with open(save_filepath, "a") as f:
+            if not args.prune_method == "wandg_set_difference":
+                print(
+                    f"{args.prune_method}\t{sparsity_ratio:.6f}\tASR_gcg\t{score:.4f}",
+                    file=f,
+                    flush=True,
+                )
+            else:
+                print(
+                    f"{args.prune_method}\t{sparsity_ratio:.6f}\t{args.p}\t{args.q}\tASR_gcg\t{score:.4f}",
+                    file=f,
+                    flush=True,
+                )
+        del vllm_model
 
     if args.eval_zero_shot:
         accelerate = False
@@ -757,6 +757,7 @@ def main():
     with open(result_path, mode) as f:
         json.dump(info_dict, f)
         f.write('\n')
+    print("Saved results to ", result_path)
 
 if __name__ == "__main__":
     main()
