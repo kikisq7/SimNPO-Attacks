@@ -1,17 +1,41 @@
 from typing import Optional, Union
 from statistics import mean
-
-import transformers
 import lm_eval
-from lm_eval.models.huggingface import HFLM
+import transformers
+
+# Try different import paths for HFLM (modern replacement of HFModel)
+try:
+    from lm_eval.models.huggingface import HFLM
+except ImportError:
+    try:
+        from lm_eval.models import HFLM
+    except ImportError:
+        try:
+            from lm_eval import models
+            HFLM = models.HFLM
+        except Exception:
+            raise ImportError(
+                "Could not import HFLM from lm_eval. Your lm-eval-harness version may be incompatible."
+            )
+
+# simple_evaluate import attempts
+try:
+    from lm_eval.api import simple_evaluate
+except ImportError:
+    try:
+        from lm_eval.evaluator import simple_evaluate
+    except ImportError:
+        raise ImportError("lm_eval.simple_evaluate not found in this installation")
+
 
 class HarnessEvaluator:
-    def __init__(self,
+    def __init__(
+        self,
         model: transformers.PreTrainedModel,
         tokenizer: Union[
-                transformers.PreTrainedTokenizer,
-                transformers.PreTrainedTokenizerFast,
-            ],
+            transformers.PreTrainedTokenizer,
+            transformers.PreTrainedTokenizerFast,
+        ],
         tasks: Union[list[str], str],
         num_fewshot: Optional[int] = 0,
         batch_size: Optional[int] = 6,
@@ -24,20 +48,57 @@ class HarnessEvaluator:
         numpy_random_seed: int = 42,
         torch_random_seed: int = 42,
         fewshot_random_seed: int = 42,
-        ) -> None:
-        
-        self.lm = HFLM(
-            pretrained=model,
-            tokenizer=tokenizer,
-            batch_size=batch_size,
-            trust_remote_code=True,
-        )
-        
-        # if tasks are passed as string with values delimited by comas turn it into a list
+    ) -> None:
+
+        # Handle PreTrainedTokenizerFast case
+        if isinstance(tokenizer, transformers.PreTrainedTokenizerFast):
+            tokenizer_name = None
+
+            if hasattr(tokenizer, "name_or_path"):
+                tokenizer_name = tokenizer.name_or_path
+            elif hasattr(model, "name_or_path"):
+                tokenizer_name = model.name_or_path
+            elif hasattr(model, "config"):
+                if hasattr(model.config, "_name_or_path"):
+                    tokenizer_name = model.config._name_or_path
+                elif hasattr(model.config, "name_or_path"):
+                    tokenizer_name = model.config.name_or_path
+
+            if tokenizer_name:
+                try:
+                    self.lm = HFLM(
+                        model,
+                        tokenizer=tokenizer_name,
+                        batch_size=batch_size,
+                        trust_remote_code=True,
+                    )
+                except Exception:
+                    self.lm = HFLM(
+                        model,
+                        batch_size=batch_size,
+                        trust_remote_code=True,
+                    )
+            else:
+                self.lm = HFLM(
+                    model,
+                    batch_size=batch_size,
+                    trust_remote_code=True,
+                )
+
+        else:
+            # Regular tokenizer
+            self.lm = HFLM(
+                model,
+                tokenizer=tokenizer,
+                batch_size=batch_size,
+                trust_remote_code=True,
+            )
+
+        # Convert comma-delimited task string
         if isinstance(tasks, str):
             tasks = tasks.split(",")
-        
-        # process utility tasks
+
+        # utility pseudo-task
         self.utility_tasks = None
         if "utility" in tasks:
             self.utility_tasks = [
@@ -46,11 +107,11 @@ class HarnessEvaluator:
                 "hellaswag",
                 "winogrande",
                 "arc_challenge",
-                "openbookqa"
+                "openbookqa",
             ]
             tasks.remove("utility")
             tasks.extend(self.utility_tasks)
-        
+
         self.tasks = tasks
         self.num_fewshot = num_fewshot
         self.batch_size = batch_size
@@ -63,42 +124,39 @@ class HarnessEvaluator:
         self.torch_random_seed = torch_random_seed
         self.fewshot_random_seed = fewshot_random_seed
         self.apply_chat_template = apply_chat_template
-    
+
     def run(self) -> dict:
         clean_results = {}
-        
-        results = lm_eval.simple_evaluate(
-            model = self.lm,
+
+        eval_args = dict(
+            model=self.lm,
             batch_size=self.batch_size,
-            tasks = self.tasks,
+            tasks=self.tasks,
             num_fewshot=self.num_fewshot,
             device=self.device,
             limit=self.limit,
-            max_batch_size = self.max_batch_size,
-            cache_requests = self.cache_requests,
-            apply_chat_template = self.apply_chat_template,
-            random_seed=self.random_seed,
-            numpy_random_seed = self.numpy_random_seed,
-            torch_random_seed = self.torch_random_seed,
-            fewshot_random_seed = self.fewshot_random_seed,
-        )["results"]
-        
+        )
+
+        import inspect
+        valid_params = inspect.signature(simple_evaluate).parameters
+        if "max_batch_size" in valid_params:
+            eval_args["max_batch_size"] = self.max_batch_size
+
+        results = simple_evaluate(**eval_args)["results"]
+
         for task in self.tasks:
-            # in case of wmdp we need to add individual scores
             if task == "wmdp":
-                for t in ["wmdp_bio", "wmdp_chem", "wmdp_cyber"]:
+                for t in ["wmdp-bio"]:
                     clean_results[t] = results[t]["acc,none"]
                 continue
-            # do not report utility tasks individually but only as average
+
             if self.utility_tasks is not None and task in self.utility_tasks:
                 continue
-            # just add all the other results
+
             clean_results[task] = results[task]["acc,none"]
-        
-        # compute average of utility tasks
+
         if self.utility_tasks is not None:
-            avg = mean([results[task]["acc,none"] for task in self.utility_tasks])
+            avg = mean(results[t]["acc,none"] for t in self.utility_tasks)
             clean_results["utility"] = avg
-        
+
         return clean_results
-        
