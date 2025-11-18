@@ -314,9 +314,9 @@ def main():
         device = model.hf_device_map["lm_head"]
     print("use device ", device)
 
-    if args.save_model:
-        model.save_pretrained(args.save_model)
-        tokenizer.save_pretrained(args.save_model)
+    # if args.save_model:
+    #     model.save_pretrained(args.save_model)
+    #     tokenizer.save_pretrained(args.save_model)
 
     if args.sparsity_ratio != 0:
         print("pruning starts")
@@ -468,7 +468,11 @@ def main():
     # ppl_test = 8.
     info_dict["ppl"] = ppl_test
     print(f"wikitext perplexity {ppl_test}")
-
+    
+    if args.save_model:
+        model.save_pretrained(args.save_model)
+        tokenizer.save_pretrained(args.save_model)
+    
     if not os.path.exists(args.save):
         os.makedirs(args.save)
     save_filepath = os.path.join(args.save, f"log_{args.prune_method}.txt")
